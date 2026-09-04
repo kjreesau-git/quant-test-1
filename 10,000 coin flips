@@ -1,0 +1,52 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+#10,000 simulation
+
+coin_results = np.random.choice([0, 1], size=(10000, 1000))
+results = np.sum(coin_results, axis=1)
+print(results.size)
+
+#mean
+mean = np.mean(results)
+print("Mean of 10,000 experiments:", mean)
+
+#standard deviation
+std_dev = np.std(results)
+print("std of 10,000 experiments:", std_dev)
+
+#min and max
+min = np.min(results)
+max = np.max(results)
+print("min of 10,000 experiments:", min)
+print("max of 10,000 experiments:", max)
+
+#Plotting histogram
+plt.title("Histogram of 10,000 experiments of 1,000 coin flips")
+plt.hist(results, bins=40)
+plt.show()
+
+#Which percentage of the 10,000 experiments achieved a result of 530 of more
+success = np.count_nonzero(results>=530)/10000*100
+print(success)
+
+#Summary of accuracy 
+
+p = [510, 520, 530, 540, 550, 560]
+q = [440, 450, 460, 470, 480, 490]
+upper_p = []
+lower_q = []
+
+
+for i in p:
+  success = np.count_nonzero(results>=i)/10000*100
+  upper_p.append(success)
+
+for i in q:
+  failure = np.count_nonzero(results<=i)/10000*100
+  lower_q.append(failure)
+
+summary = pd.DataFrame({"Cutoffs":q+p, "Probability under 50/50":lower_q+upper_p})
+print(summary)

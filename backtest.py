@@ -1,3 +1,4 @@
 import pandas as pd
 
-print("Quant backtest")
+print("FX Momentum backtest")
+print("Testing GARCH volatility")

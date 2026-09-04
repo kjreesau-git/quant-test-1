@@ -1,0 +1,37 @@
+#Coin Flip simulator which flips 1000 coins and returns the proportion of heads out of 1000.
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+n=1000
+
+def coin_flip(n):
+  coin_results = np.random.choice([0, 1], size=n)
+  heads = np.count_nonzero(coin_results==0)
+  tails = np.count_nonzero(coin_results==1)
+
+  print("heads:", heads)   
+  print("tails:", tails)    
+  print("proportion of heads:", heads/n*100)
+  print("proportion of tails:", tails/n*100)
+
+
+  bin_counts = np.bincount(coin_results)
+  print(bin_counts)
+  plt.bar([0,1], bin_counts)
+  plt.xticks([0,1], ['Heads', 'Tails'])
+  plt.ylabel('Count')
+  plt.title('Distribution of 1000 coin flips')
+  plt.show()
+
+  cum_heads = np.cumsum(coin_results)
+  cum_denom = np.arange(1,1001)
+
+  cum_prop_heads = cum_heads/cum_denom
+
+  plt.axhline(y=0.5)
+  plt.plot(cum_prop_heads)
+  plt.title("Cumulative proportion of heads")
+  plt.show()
+
+coin_flip(n)

@@ -1,0 +1,86 @@
+
+#Import prices of AAPL for 100 trading days
+aapl_prices = yf.download(tickers='AAPL',start='2026-01-01', end='2026-05-31', progress=False, auto_adjust=False)['Adj Close'].squeeze()
+#Convert to daily returns
+aapl_daily_ret = aapl_prices.pct_change()
+#Moving average 20 days
+aapl_MA20 = aapl_prices.rolling(window=20).mean()
+
+aapl_main = pd.DataFrame(
+    {'Adj Close': aapl_prices,
+     'Daily Return': aapl_daily_ret,
+     'MA20': aapl_MA20
+    }, index=aapl_prices.index
+)
+
+aapl_main = aapl_main.dropna()
+aapl_main['Signal'] = (aapl_main['Adj Close']>aapl_main['MA20']).astype(int)
+aapl_main['Position'] = aapl_main['Signal'].shift(1)
+
+aapl_main['Strategy_return'] = aapl_main['Position']*aapl_main['Daily Return']
+aapl_main = aapl_main.dropna()
+
+
+#Strategy Equity Curve
+cum_stratret = 1* np.cumprod(aapl_main['Strategy_return']+1)
+
+#Buy and Hold strat
+cum_aaplret = 1* np.cumprod(aapl_main['Daily Return']+1)
+
+#Total strategy return
+total_stratret = (cum_stratret.iloc[-1]-1)*100
+print("Total Strategy Return:", total_stratret)
+
+#Total buy and hold return
+total_aaplret = (cum_aaplret.iloc[-1]-1)*100
+print("Total AAPL Return:", total_aaplret)
+
+#Sharpe Ratio annualized
+sharpe_ratio = np.mean(aapl_main['Strategy_return'])/np.std(aapl_main['Strategy_return'], ddof=1)
+sharpe_ratio_annualized = sharpe_ratio*np.sqrt(252)
+
+print("Sharpe Ratio:", sharpe_ratio)
+print("Sharpe Ratio Annualized:", sharpe_ratio_annualized)
+
+#Calculating running peak of strategy
+running_peak = np.maximum.accumulate(cum_stratret)
+# or can use cum_stratret.cummax()
+drawdown = ((cum_stratret/running_peak)-1)*100
+max_drawdown = np.min(drawdown)
+#or drawdown.min()
+print(drawdown)
+print(max_drawdown)
+
+#number of days invested (active)
+active_signal = aapl_main['Position']
+#Percentage of days invested
+print("Percentage of days invested:", np.count_nonzero(active_signal==1)/len(active_signal)*100)
+
+
+#AAPL price vs MA20
+plt.plot(aapl_main['Adj Close'], label = 'AAPL')
+plt.plot(aapl_main['MA20'], label = 'MA20')
+plt.legend()
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.title("AAPL Price vs MA20")
+plt.show()
+
+#Strategy vs B&H strat
+plt.plot(cum_stratret, label = 'str_ret')
+plt.plot(cum_aaplret, label = 'aapl_ret')
+plt.legend()
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.title("Strat vs B&H")
+plt.show()
+
+#Drawdown
+plt.plot(drawdown, label = 'drawdown')
+plt.axhline(y=max_drawdown, label='Max Drawdown')
+plt.legend()
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.title("Drawdown vs MDD")
+plt.show()
+

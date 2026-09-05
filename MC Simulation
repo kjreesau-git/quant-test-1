@@ -1,0 +1,90 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+#Price Path simulation
+
+#Inputs
+S_0 = 100
+T = 252
+mean = 0.0003
+sigma = 0.015
+
+#Simulation of one price path across 252 trading days
+
+returns = np.random.normal(mean, sigma, T)
+prices = np.cumprod(1+returns)*S_0
+prices = np.insert(prices, 0, S_0)
+
+S_T = prices[-1]
+#print("Final Price:", S_T)
+
+total_return = ((S_T-S_0)/S_0)*100
+#print("Total Return:", total_return, "%")
+
+annualized_vol = np.std(returns)*np.sqrt(T)
+print("Annualized Vol:", annualized_vol)
+
+running_peak = np.maximum.accumulate(prices)
+#print("Running Peak:", running_peak)
+
+drawdown = ((prices/running_peak)-1)*100
+#print("Drawdown at each price:", drawdown)
+print("Max drawdown:", np.min(drawdown))
+
+#plots
+plt.plot(prices)
+plt.title("Price path")
+plt.xlabel("Trading Days")
+plt.show()
+
+plt.hist(returns, bins = 20)
+plt.title("Histogram of returns")
+plt.xlabel("Returns")
+plt.show()
+
+plt.plot(drawdown)
+plt.title("Drawdown path")
+plt.xlabel("Trading Days")
+plt.ylabel("%")
+plt.show()
+
+
+
+#Generating 1000 MC simulations
+#Generating all 1000 simulations of 252 days
+returns = np.random.normal(mean, sigma, size= (n, T))
+prices = S_0*np.cumprod(1+returns, axis=1)
+#insert in prices, at position 0, price S_0, along axis=1 (in the columns)
+prices = np.insert(prices, 0, S_0, axis=1)
+print(prices)
+#Terminal price of every path
+#: means all rows and -1 means last column
+terminal_prices = prices[:,-1]
+
+#mean terminal price
+print("mean terminal price:", np.mean(terminal_prices))
+#median terminal price
+print("median terminal price:", np.median(terminal_prices))
+#5th percentile
+print("5th percentile:", np.percentile(terminal_prices, 5))
+#95th percentile
+print("95th percentile:", np.percentile(terminal_prices, 95))
+#Percentage ending below 100
+print("Percentage ending below 100:", np.count_nonzero(terminal_prices<100)/n*100, "%")
+#Percentage ending below 80
+print("Percentage ending below 80:", np.count_nonzero(terminal_prices<80)/n*100, "%")
+
+#Plot around 100 simulated price charts on one chart
+#.T means to transpose which is because plt would confuse rows for colums
+plt.title("Visualization of first 100 simulations")
+plt.plot(prices[:100].T)
+plt.xlabel("Trading days")
+plt.ylabel("Prices")
+plt.show()
+
+#Plot 1000 terminal prices 
+plt.title("1000 terminal prices dispersion")
+plt.hist(terminal_prices, bins = 30)
+plt.xlabel("Terminal prices")
+plt.show()

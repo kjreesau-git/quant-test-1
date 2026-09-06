@@ -1,0 +1,188 @@
+#Black Scholes Options Pricing
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+from scipy.stats import norm
+
+S = 100
+K = 100
+r = 0.05
+sigma = 0.20
+T = 1
+
+d1 = (np.log(S/K)+(r+0.5*(sigma**2))*T) / (sigma*(np.sqrt(T)))
+d2 = d1 - sigma*np.sqrt(T)
+
+#Call options pricing
+c = S * norm.cdf(d1) - (K*np.exp(-r*T) * norm.cdf(d2))
+
+#Put options pricing
+p = K * np.exp(-r*T) * norm.cdf(-d2) - S* norm.cdf(-d1)
+
+if abs((c-p)-(S-K*np.exp(-r*T)))< 0.00001:
+  print("Put Call parity holds")
+else:
+  print("Put Call parity does not hold")
+
+
+#Varying the stock price
+S = [50,60,70,80,90,100,110,120,130,140,150]
+C = []
+P = []
+for i in S:
+  d1 = (np.log(i/K)+(r+0.5*(sigma**2))*T) / (sigma*(np.sqrt(T)))
+  d2 = d1 - sigma*np.sqrt(T)
+  c = i * norm.cdf(d1) - (K*np.exp(-r*T) * norm.cdf(d2))
+  p = K * np.exp(-r*T) * norm.cdf(-d2) - i* norm.cdf(-d1)
+  C.append(round(float(c), 4))
+  P.append(round(float(p), 4))
+
+stock_sim_df = pd.DataFrame(
+    {"S_t":S,
+     "Call":C,
+     "Put":P
+     })
+
+print(stock_sim_df)
+
+plt.title("Options vs stock price")
+plt.axvline(x = K, label = "Strike Price")
+plt.plot(stock_sim_df['S_t'], stock_sim_df['Call'], label = 'Call')
+plt.plot(stock_sim_df['S_t'], stock_sim_df['Put'], label = 'Put')
+plt.xlabel("Stock Price")
+plt.ylabel("Options Price")
+plt.legend()
+plt.show()
+
+
+
+#Varying only sigma
+S = 100
+K = 100
+r = 0.05
+sigma = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
+T = 1
+
+C = []
+P = []
+for i in sigma:
+  d1 = (np.log(S/K)+(r+0.5*(i**2))*T) / (i*(np.sqrt(T)))
+  d2 = d1 - i*np.sqrt(T)
+  c = S * norm.cdf(d1) - (K*np.exp(-r*T) * norm.cdf(d2))
+  p = K * np.exp(-r*T) * norm.cdf(-d2) - S* norm.cdf(-d1)
+  C.append(round(float(c), 4))
+  P.append(round(float(p), 4))
+
+sigma_sim_df = pd.DataFrame(
+    {"S_t":S,
+     "Sigma":sigma,
+     "Call":C,
+     "Put":P
+     })
+
+print(sigma_sim_df)
+
+plt.title("Options vs sigma")
+plt.plot(sigma_sim_df['Sigma'], sigma_sim_df['Call'], label = 'Call')
+plt.plot(sigma_sim_df['Sigma'], sigma_sim_df['Put'], label = 'Put')
+plt.xlabel("Sigma")
+plt.ylabel("Options Prices")
+plt.legend()
+plt.show()
+
+
+# Varying time
+T = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5,10]
+S = K = 100
+r = 0.05
+sigma = 0.2
+
+C = []
+P = []
+for i in T:
+  d1 = (np.log(S/K)+(r+0.5*(sigma**2))*i) / (sigma*(np.sqrt(i)))
+  d2 = d1 - sigma*np.sqrt(i)
+  c = S * norm.cdf(d1) - (K*np.exp(-r*i) * norm.cdf(d2))
+  p = K * np.exp(-r*i) * norm.cdf(-d2) - S* norm.cdf(-d1)
+  C.append(round(float(c), 4))
+  P.append(round(float(p), 4))
+
+time_sim_df = pd.DataFrame(
+    {"T":T,
+     "Call":C,
+     "Put":P
+     })
+
+print(time_sim_df)
+plt.title("Time vs sigma")
+plt.plot(time_sim_df['T'], time_sim_df['Call'], label = 'Call')
+plt.plot(time_sim_df['T'], time_sim_df['Put'], label = 'Put')
+plt.xlabel("T")
+plt.ylabel("Options Prices")
+plt.legend()
+plt.show()
+
+# Varying rates
+T = 1
+S = K = 100
+r = [0.01, 0.015, 0.020, 0.025, 0.030, 0.035, 0.040, 0.045, 0.050]
+sigma = 0.2
+
+C = []
+P = []
+for i in r:
+  d1 = (np.log(S/K)+(i+0.5*(sigma**2))*T) / (sigma*(np.sqrt(T)))
+  d2 = d1 - sigma*np.sqrt(T)
+  c = S * norm.cdf(d1) - (K*np.exp(-i*T) * norm.cdf(d2))
+  p = K * np.exp(-i*T) * norm.cdf(-d2) - S* norm.cdf(-d1)
+  C.append(round(float(c), 4))
+  P.append(round(float(p), 4))
+
+rates_sim_df = pd.DataFrame(
+    {"Rates":r,
+     "Call":C,
+     "Put":P
+     })
+
+print(rates_sim_df)
+
+plt.title("Rates vs Options")
+plt.plot(rates_sim_df['Rates'], rates_sim_df['Call'], label = 'Call')
+plt.plot(rates_sim_df['Rates'], rates_sim_df['Put'], label = 'Put')
+plt.xlabel("Rates")
+plt.ylabel("Options Prices")
+plt.legend()
+plt.show()
+
+# Varying Strike
+T = 1
+S = 100
+K = [50,60,70,80,90,100,110,120,130,140,150]
+r = 0.05
+sigma = 0.2
+
+C = []
+P = []
+for i in K:
+  d1 = (np.log(S/i)+(r+0.5*(sigma**2))*T) / (sigma*(np.sqrt(T)))
+  d2 = d1 - sigma*np.sqrt(T)
+  c = S * norm.cdf(d1) - (i*np.exp(-r*T) * norm.cdf(d2))
+  p = i * np.exp(-r*T) * norm.cdf(-d2) - S* norm.cdf(-d1)
+  C.append(round(float(c), 4))
+  P.append(round(float(p), 4))
+
+strike_sim_df = pd.DataFrame(
+    {"Strikes":K,
+     "Call":C,
+     "Put":P
+     })
+
+print(strike_sim_df)
+
+plt.title("Strikes vs Options")
+plt.plot(strike_sim_df['Strikes'], strike_sim_df['Call'], label = 'Call')
+plt.plot(strike_sim_df['Strikes'], strike_sim_df['Put'], label = 'Put')
+plt.xlabel("Strikes")
+plt.ylabel("Options Prices")
+plt.legend()
+plt.show()

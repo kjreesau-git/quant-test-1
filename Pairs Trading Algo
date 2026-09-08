@@ -1,0 +1,76 @@
+# Pairs Trading Algo with Statistic Evaluation
+!pip install yfinance
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import yfinance as yf
+import seaborn as sns
+
+
+tickers = ['NVDA', 'AMD', 'INTC', 'QCOM', 'AVGO', 'MU', 'TXN', 'ADI', 'NXPI', 'MCHP']
+
+raw_prices = yf.download(tickers, start = "2022-01-01", end = "2026-01-01", progress = False, auto_adjust = False)['Adj Close'].squeeze()
+
+
+#Descriptive information, find the number of nulls, the 10 heads, the 10 tails, the shapes and pct change for returns
+#Convert prices into daily returns
+raw_returns = raw_prices.pct_change()
+raw_returns = raw_returns.dropna()
+
+#Create normalized prices
+normalized_prices = (raw_prices / raw_prices.iloc[0]) * 100
+normalized_prices = normalized_prices.dropna()
+
+plt.plot(normalized_prices)
+plt.xlabel('Date')
+plt.ylabel('Normalized Price')
+plt.xticks(rotation=45)
+plt.title('Normalized Stock Prices')
+plt.legend(normalized_prices.columns)
+plt.show()
+
+#correlation matrix
+corr_matrix = raw_returns.corr()
+sns.heatmap(corr_matrix, annot = True, cmap ="coolwarm")
+plt.title('Correlation Matrix')
+plt.show()
+
+# keep only the upper triangle of the corr matrix. Here, we create a one matrix
+# using the shape of the original corr matrix via 10x10. then we choose np.triu to 
+#keep the upper triangle and k=1 has a diagonal offset of 1 as well. Further, 
+#we convert the ones into a boolean and we apply the boolean to the corr matrix
+# to extract all values above the diagonal ones. 
+upper_corr = corr_matrix.where(np.triu(np.ones(corr_matrix.shape),k=1).astype(bool))
+
+
+#convert the upper corr matrix into a flattened and stacked table for sorting
+corr_pairs = upper_corr.stack().rename_axis(["Ticker_1","Ticker_2"]).sort_values(ascending=False).reset_index(name = 'Correlation')
+print(corr_pairs.head(5))
+
+#Hypothesis testing. For each pair, the null hypothesis is corr = 0 and the alt hypo is not zero
+
+from scipy.stats import pearsonr
+plt.figure(figsize=(15,6))
+
+# Top 5 correlated pairs
+pairs = [('ADI', 'MCHP'),('MCHP', 'NXPI'),('ADI', 'NXPI'),('ADI', 'TXN'),('MCHP', 'TXN')]
+
+# Pearson correlation hypothesis testing
+print("PEARSON CORRELATION TESTS")
+
+for ticker_1, ticker_2 in pairs:
+    r, p_value = pearsonr(raw_returns[ticker_1], raw_returns[ticker_2])
+    print(ticker_1,"-", ticker_2,"| r =", r, "| p-value =", p_value)
+    # 60-day rolling correlation analysis
+    rolling_corr = (raw_returns[ticker_1].rolling(window=60).corr(raw_returns[ticker_2]))
+    plt.plot(rolling_corr.index, rolling_corr, label = f"{ticker_1}-{ticker_2}")
+    plt.axhline(y=0.5)
+    plt.xlabel("Date")
+    plt.ylabel("Correlation")
+    plt.title("60-Day Rolling Correlation Analysis")
+    print("Mean:", rolling_corr.mean())
+    print("Std:", rolling_corr.std())
+    print("Min:", rolling_corr.min())
+    print("Max:", rolling_corr.max())
+    print("-"*80)
+    print("-"*80)

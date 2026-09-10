@@ -1,0 +1,56 @@
+Input file with synthetic prices and volumes: https://drive.google.com/drive/u/2/folders/1zYnROp-4VFuy-SO7M0Qu02tYlYWFi8YD
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+orders = pd.read_csv("execution_tca_synthetic_intraday.csv")
+
+#Convert the Timestamp dates and times into pd's datetime data format
+orders['Timestamp'] = pd.to_datetime(orders['Timestamp'])
+
+#Checking for missing values
+print(orders.isna().sum())
+
+#Splitting the orders df
+orders_rising = orders.loc[orders['Scenario'] == 'Rising'].sort_values(by='Timestamp').reset_index(drop=True)
+orders_stable = orders.loc[orders['Scenario'] == 'Stable'].sort_values(by='Timestamp').reset_index(drop=True)
+
+#Statistical Description of the various columns
+orders_rising[['Price', 'Volume']].agg(['count', 'mean', 'median', 'std', 'min', 'max'])
+orders_stable[['Price', 'Volume']].agg(['count', 'mean', 'median', 'std', 'min', 'max'])
+
+#Orders setup
+Q = 100000
+
+
+#strategy_A immediate execution to buy or sell 100000 shares at once
+orders_stable['immediate_qty'] = 0
+#In the immediate_qty column at index 0, insert quantity Q and previous line is essentially everything zero
+orders_stable.loc[0, "immediate_qty"] = Q 
+print(orders_stable['immediate_qty'].sum())
+
+
+#Strategy B - TWAP - Time Weighted 
+Q_B = Q//len(orders_stable)
+print(Q_B)
+orders_stable['twap_qty'] = Q_B
+orders_stable.loc[len(orders_stable)-1,'twap_qty'] += 4
+print(orders_stable['twap_qty'].sum())
+
+#Strategy C - VWAP - Volume Weighted
+vol_weighted = orders_stable['Volume']/np.sum(orders_stable['Volume'])
+Q_C = Q*vol_weighted
+orders_stable['vwap_qty'] = Q_C
+print(orders_stable['vwap_qty'].sum())
+
+#Strategy D - POV participation
+participation_rate = 0.01
+orders_stable['pov_qty'] = participation_rate * orders_stable['Volume']
+orders_stable['cum_vol']=orders_stable['pov_qty'].cumsum()
+print(orders_stable)
+#Inserting limit where it exceeds Q
+idx = orders_stable[orders_stable['cum_vol'] > Q].index[0]
+orders_stable.loc[idx, 'pov_qty'] = Q-orders_stable.loc[idx-1, 'cum_vol']
+orders_stable.loc[idx+1:, 'pov_qty'] = 0
+print(orders_stable['pov_qty'].sum())

@@ -7,21 +7,24 @@ import yfinance as yf
 import seaborn as sns
 
 
-tickers = ['NVDA', 'AMD', 'INTC', 'QCOM', 'AVGO', 'MU', 'TXN', 'ADI', 'NXPI', 'MCHP']
+tickers = ['EURUSD=X', 'GBPUSD=X', 'AUDUSD=X', 'NZDUSD=X']
 
-raw_prices = yf.download(tickers, start = "2022-01-01", end = "2026-01-01", progress = False, auto_adjust = False)['Adj Close'].squeeze()
+raw_prices = yf.download(tickers, start = "2018-01-01", end = "2026-01-01", progress = False, auto_adjust = False)['Adj Close'].squeeze()
+
 
 
 #Descriptive information, find the number of nulls, the 10 heads, the 10 tails, the shapes and pct change for returns
 #Convert prices into daily returns
 raw_returns = raw_prices.pct_change()
 raw_returns = raw_returns.dropna()
+log_prices = np.log(raw_prices)
 
 #Create normalized prices
 normalized_prices = (raw_prices / raw_prices.iloc[0]) * 100
 normalized_prices = normalized_prices.dropna()
 
 plt.plot(normalized_prices)
+plt.figsize= (15,6)
 plt.xlabel('Date')
 plt.ylabel('Normalized Price')
 plt.xticks(rotation=45)
@@ -36,10 +39,10 @@ plt.title('Correlation Matrix')
 plt.show()
 
 # keep only the upper triangle of the corr matrix. Here, we create a one matrix
-# using the shape of the original corr matrix via 10x10. then we choose np.triu to 
-#keep the upper triangle and k=1 has a diagonal offset of 1 as well. Further, 
+# using the shape of the original corr matrix via 10x10. then we choose np.triu to
+#keep the upper triangle and k=1 has a diagonal offset of 1 as well. Further,
 #we convert the ones into a boolean and we apply the boolean to the corr matrix
-# to extract all values above the diagonal ones. 
+# to extract all values above the diagonal ones.
 upper_corr = corr_matrix.where(np.triu(np.ones(corr_matrix.shape),k=1).astype(bool))
 
 
@@ -51,9 +54,9 @@ print(corr_pairs.head(5))
 
 from scipy.stats import pearsonr
 plt.figure(figsize=(15,6))
-
+['EURUSD=X', 'GBPUSD=X', 'AUDUSD=X', 'NZDUSD=X']
 # Top 5 correlated pairs
-pairs = [('ADI', 'MCHP'),('MCHP', 'NXPI'),('ADI', 'NXPI'),('ADI', 'TXN'),('MCHP', 'TXN')]
+pairs = [('AUDUSD=X', 'NZDUSD=X'),('EURUSD=X', 'GBPUSD=X'),('AUDUSD=X', 'GBPUSD=X'),('GBPUSD=X', 'NZDUSD=X'),('EURUSD=X', 'NZDUSD=X')]
 
 # Pearson correlation hypothesis testing
 print("PEARSON CORRELATION TESTS")
@@ -74,3 +77,138 @@ for ticker_1, ticker_2 in pairs:
     print("Max:", rolling_corr.max())
     print("-"*80)
     print("-"*80)
+
+
+
+from sklearn.linear_model import LinearRegression
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.stattools import coint
+
+pairs = [('AUDUSD=X', 'NZDUSD=X'),('EURUSD=X', 'GBPUSD=X'),('AUDUSD=X', 'GBPUSD=X'),('GBPUSD=X', 'NZDUSD=X'),('EURUSD=X', 'NZDUSD=X')]
+
+for ticker_1, ticker_2 in pairs:
+
+    print("-" * 80)
+    print("Regression:", ticker_1, "-", ticker_2)
+
+    # Set up the regression
+    Y = log_prices[ticker_1]
+    X = log_prices[ticker_2]
+
+    # Fit Y = alpha + beta*X
+    model = LinearRegression()
+    model.fit(X.values.reshape(-1, 1), Y)
+
+    alpha = model.intercept_
+    beta = model.coef_[0]
+    r_squared = model.score(X.values.reshape(-1, 1), Y)
+
+    # Construct the residual spread
+    spread = Y - (alpha + beta * X)
+
+    # Test the spread for stationarity
+    adf_results = adfuller(spread)
+
+    print("Alpha:", alpha)
+    print("Beta:", beta)
+    print("R²:", r_squared)
+    print("Spread ADF statistic:", adf_results[0])
+    print("Spread ADF p-value:", adf_results[1])
+
+#Cointegration Analysis
+print("-" * 80)
+print("-" * 80)
+
+for ticker_1, ticker_2 in pairs:
+  Y = log_prices[ticker_1]
+  X = log_prices[ticker_2]
+
+  coint_stat, p_value, critical_values = coint(Y,X)
+  print("Cointegration summary for:", ticker_1,"-", ticker_2)
+  print("Cointegration statistic:", coint_stat)
+  print("P-value:", p_value)
+  print("Critical values:", critical_values)
+
+
+# Set up the regression
+Y = log_prices['EURUSD=X']
+X = log_prices['GBPUSD=X']
+
+# Fit Y = alpha + beta*X
+model = LinearRegression()
+model.fit(X.values.reshape(-1, 1), Y)
+
+alpha = model.intercept_
+beta = model.coef_[0]
+r_squared = model.score(X.values.reshape(-1, 1), Y)
+
+# Construct the residual spread
+spread = Y - (alpha + beta * X)
+
+plt.plot(spread)
+plt.xlabel("Date")
+plt.ylabel("Spread")
+plt.title("EURUSD - GBPUSD spread over time")
+plt.show()
+
+#Standardising the spread
+rolling_mean = spread.rolling(60).mean()
+rolling_std = spread.rolling(60).std()
+
+spread_z = (spread - rolling_mean) / rolling_std
+
+#Trading strategy
+strategy = pd.DataFrame(index=spread_z.index)
+
+strategy["spread"] = spread
+strategy["z_score"] = spread_z
+strategy["signal"] = "Hold"
+
+strategy.loc[strategy["z_score"] > 2, "signal"] = "Sell"
+strategy.loc[strategy["z_score"] < -2, "signal"] = "Buy"
+strategy.loc[strategy["z_score"].abs() < 0.1, "signal"] = "Exit"
+print(strategy.tail(20))
+
+strategy["position"] = np.nan
+
+strategy.loc[strategy["signal"] == "Buy", "position"] = 1
+strategy.loc[strategy["signal"] == "Sell", "position"] = -1
+strategy.loc[strategy["signal"] == "Exit", "position"] = 0
+strategy["position"] = strategy["position"].ffill().fillna(0)
+strategy['position'] = strategy["position"].shift(1)
+#Strategy returns based on the spread between EURUSD and GBPUSD
+pair_return = np.log(raw_prices['EURUSD=X']).diff() - beta * np.log(raw_prices['GBPUSD=X']).diff()
+strategy['strategy_return'] = strategy['position'] *pair_return
+print(strategy.tail())
+
+
+#Backtest evaluation
+
+#Creating an equity column for the cum return plot
+
+strategy['cum_returns'] = (1 + strategy["strategy_return"].fillna(0)).cumprod()
+
+#Total returns
+total_return = strategy["cum_returns"].iloc[-1] - 1
+print("total_return:", total_return)
+annualized_vol = np.std(strategy['strategy_return']) * np.sqrt(252)
+print("annualized_vol:", annualized_vol)
+sharpe = (strategy['strategy_return'].mean() / strategy['strategy_return'].std()) * np.sqrt(252)
+print("sharpe:", sharpe)
+drawdown = strategy['cum_returns']/strategy['cum_returns'].cummax() - 1
+max_drawdown = drawdown.min()
+print("max_drawdown:", max_drawdown)
+
+
+#Total trade counts
+trade_count = (strategy['position'].diff().abs()>0).sum()
+print(trade_count)
+
+#plotting the curve
+plt.figure(figsize = (15,6))
+plt.plot(strategy['cum_returns'])
+plt.title("Pairs trading strategy return curve")
+plt.xlabel("Date")
+plt.ylabel("Returns")
+plt.show()
+

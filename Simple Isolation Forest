@@ -1,0 +1,40 @@
+import pandas as pd
+
+data = {
+    "trade_id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "ticker": ["AAA", "AAA", "BBB", "BBB", "CCC", "CCC", "DDD", "DDD", "EEE", "EEE"],
+    "quantity": [1000, 1100, 900, 950, 1200, 1250, 1000, 8000, 1050, 1150],
+    "price": [50.0, 50.5, 30.0, 30.2, 70.0, 70.5, 40.0, 55.0, 60.0, 60.3],
+    "avg_quantity": [1050, 1050, 925, 925, 1225, 1225, 1000, 1000, 1100, 1100],
+    "avg_price": [50.2, 50.2, 30.1, 30.1, 70.2, 70.2, 40.5, 40.5, 60.1, 60.1]
+}
+
+df = pd.DataFrame(data)
+
+#Inspecting the data
+
+print(df.isnull().sum())
+print(df.duplicated().sum())
+
+#quantity deviation col
+df['quantity_deviation'] = (df['quantity'] - df['avg_quantity']) / df['avg_quantity']
+
+#price deviation col
+df['price_deviation'] = (df['price'] - df['avg_price']) / df['avg_price']
+
+df.loc[df['quantity_deviation'].abs() > 1, 'flag_qty'] = "Flag"
+df.loc[df['price_deviation'].abs() > 0.1, 'flag_price'] = "Flag"
+df.loc[(df['flag_qty'] == 'Flag') | (df['flag_price']=='Flag'), 'flag_both'] = "Flag"
+
+print(df[df['flag_both']=='Flag'])
+
+#Implementing Isolation Forest
+from sklearn.ensemble import IsolationForest
+
+X = df[['quantity_deviation', 'price_deviation']]
+
+iso_forest = IsolationForest(contamination = 0.1, random_state = 1108)
+df['if_anomaly'] = iso_forest.fit_predict(X)
+df['if_anomaly'] = df['if_anomaly'] == -1
+
+print(df[df['if_anomaly']==True])
